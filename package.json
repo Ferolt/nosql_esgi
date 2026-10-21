@@ -1,0 +1,30 @@
+{
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "sql": "tsx src/main.ts",
+    "mongo:intro": "tsx src/mongo/01-intro.ts",
+    "mongo:crud": "tsx src/mongo/02-crud.ts",
+    "mongo:exercices": "tsx src/mongo/03-exercices-documents.ts",
+    "mongo:index": "tsx src/mongo/04-index.ts",
+    "mongo:aggregation": "tsx src/mongo/05-aggregation.ts",
+    "mongo:change-stream": "tsx src/mongo/06-change-stream.ts",
+    "valkey:modelisation": "tsx src/valkey/01-modelisation.ts",
+    "valkey:structures": "tsx src/valkey/02-structures.ts",
+    "valkey:cache": "tsx src/valkey/03-cache.ts",
+    "valkey:pubsub": "tsx src/valkey/04-pubsub.ts",
+    "valkey:stream": "tsx src/valkey/05-stream.ts",
+    "all": "npm run sql && npm run mongo:intro && npm run mongo:crud && npm run mongo:exercices && npm run mongo:index && npm run mongo:aggregation && npm run valkey:modelisation && npm run valkey:structures && npm run valkey:cache && npm run valkey:pubsub && npm run valkey:stream",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@valkey/valkey-glide": "2.5.1",
+    "mongodb": "7.6.0",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}

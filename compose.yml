@@ -1,0 +1,127 @@
+services:
+  node-installer:
+    image: node:24-alpine
+    working_dir: /home/node/project
+    volumes:
+      - .:/home/node/project
+    command: npm i
+
+  app:
+    image: node:24-alpine
+    working_dir: /home/node/project
+    volumes:
+      - .:/home/node/project
+    command: npm run dev
+    environment:
+      POSTGRES_URL: postgres://user:password@postgres:5432/marketplace
+      MONGO_URL: mongodb://root:password@mongo:27017/marketplace?authSource=admin
+      MONGO_CLUSTER_URL: mongodb://mongo-1:27017,mongo-2:27017,mongo-3:27017/marketplace?replicaSet=rs0
+      VALKEY_HOST: valkey
+    depends_on:
+      postgres:
+        condition: service_started
+      mongo:
+        condition: service_started
+      valkey:
+        condition: service_started
+      node-installer:
+        condition: service_completed_successfully
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: marketplace
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./database/postgres:/docker-entrypoint-initdb.d:ro
+
+  mongo:
+    image: mongo:8.0-noble
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: marketplace
+    volumes:
+      - mongo_data:/data/db
+      - ./database/mongo:/docker-entrypoint-initdb.d:ro
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine
+    command:
+      - valkey-server
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+
+  # --- MongoDB en Replica Set (dernière partie MongoDB) ---
+  # Démarrage : docker compose --profile cluster up -d mongo-1 mongo-2 mongo-3 mongo-init
+  mongo-1:
+    image: mongo:8.0-noble
+    profiles: ["cluster"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_1_data:/data/db
+
+  mongo-2:
+    image: mongo:8.0-noble
+    profiles: ["cluster"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_2_data:/data/db
+
+  mongo-3:
+    image: mongo:8.0-noble
+    profiles: ["cluster"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo_3_data:/data/db
+
+  mongo-init:
+    image: mongo:8.0-noble
+    profiles: ["cluster"]
+    depends_on:
+      - mongo-1
+      - mongo-2
+      - mongo-3
+    command: >
+      bash -c '
+      until mongosh --host mongo-1:27017 --eval "db.adminCommand({ ping: 1 })";
+      do sleep 1;
+      done;
+      mongosh --host mongo-1:27017 --eval "
+      try {
+        rs.status();
+        print(\"Replica Set déjà initialisé\");
+      } catch (error) {
+        rs.initiate({
+          _id: \"rs0\",
+          members: [
+            { _id: 0, host: \"mongo-1:27017\" },
+            { _id: 1, host: \"mongo-2:27017\" },
+            { _id: 2, host: \"mongo-3:27017\" }
+          ]
+        });
+      }
+      "
+      '
+
+volumes:
+  postgres_data:
+  mongo_data:
+  valkey_data:
+  mongo_1_data:
+  mongo_2_data:
+  mongo_3_data:
